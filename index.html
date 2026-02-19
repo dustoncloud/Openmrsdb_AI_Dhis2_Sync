@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bahmni AI Reporting + DHIS2 Sync</title>
+    <link rel="stylesheet" href="/htmls/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Sidebar Footer Credit Styles */
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 15px;
+            border-top: 1px solid #2d3748;
+            background: #1a202c;
+        }
+        .dev-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #a0aec0;
+            text-decoration: none;
+            font-size: 11px;
+            transition: 0.2s;
+        }
+        .dev-info:hover { color: #63b3ed; }
+        .dev-info i { font-size: 16px; }
+        .license-tag {
+            display: inline-block;
+            margin-top: 5px;
+            font-size: 9px;
+            background: #2d3748;
+            color: #48bb78;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login" id="loginBox">
+        <div class="login-card">
+            <div style="text-align: right; margin-bottom: -10px;">
+                <span style="font-size: 9px; color: #4a5568; background: #ebf8ff; padding: 2px 6px; border-radius: 10px;">v1.0.2-stable</span>
+            </div>
+            <h2>🔐 Bahmni AI Login</h2>
+            <p>Accessing Reporting & DHIS2 Sync</p>
+            <input id="pwd" type="password" placeholder="Enter administrative password" />
+            <button onclick="login()">Enter System</button>
+            <p style="font-size: 10px; color: #a0aec0; margin-top: 20px;">
+                Developed by <span style="color: #63b3ed;">[Your Name]</span>
+            </p>
+        </div>
+    </div>
+
+    <div id="app" style="display:none; width:100%">
+        <div class="sidebar" style="display: flex; flex-direction: column;">
+            <button class="new-chat" onclick="newChat()">+ New chat</button>
+            
+            <div class="sidebar-section-title">
+                <i class="fas fa-robot"></i> AI Analysis
+            </div>
+            <div class="preset" onclick="preset('How many total persons are in the system?')">👥 Total (All Time)</div>
+            <div class="preset" onclick="preset('Show the system growth by month')">📈 Monthly Growth</div>
+            <div class="preset" onclick="preset('How many patients were registered?')">📝 Registration Count</div>
+            <div class="preset" onclick="preset('Show me all appointments.')">📅 All RDVs</div>
+            <div class="preset" onclick="preset('How many ANC visits were recorded?')">🤰 ANC Report</div>
+            <div class="preset" onclick="preset('Give me a summary table of vitals.')">📉 Vitals Summary</div>
+
+            <div class="sidebar-section-title">
+                <i class="fas fa-database"></i> Database Reports
+            </div>
+            <div class="manual-box">
+                <div class="preset manual-main" onclick="preset('list')">
+                    <i class="fas fa-terminal"></i> Manual Reports
+                </div>
+                <div class="quick-badges">
+                    <span class="badge" onclick="preset('101')">#101 IPD</span>
+                    <span class="badge" onclick="preset('102')">#102 Lab</span>
+                </div>
+            </div>
+
+            <button class="logout-btn" onclick="logout()">Logout</button>
+
+            <div class="sidebar-footer">
+                <a href="https://github.com/dustoncloud" target="_blank" class="dev-info">
+                    <i class="fab fa-github"></i>
+                    <div>
+                        <div style="font-weight: bold;">[Your Full Name]</div>
+                        <div style="font-size: 9px;">Open Source Contributor</div>
+                    </div>
+                </a>
+                <div class="license-tag">MIT License</div>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="date-filter-bar" id="date-filter-bar">
+                <div class="date-input-group">
+                    <label>Query From</label>
+                    <input type="date" id="date-from" value="2026-01-01">
+                </div>
+                <div class="date-input-group">
+                    <label>Query To</label>
+                    <input type="date" id="date-to" value="2026-01-31">
+                </div>
+            </div>
+
+            <div class="sync-log-container" id="sync-status-area">
+                <div class="latest-sync-bar">
+                    <span id="last-sync-text">
+                        <i class="fas fa-history" style="margin-right:8px;"></i> No recent sync activity.
+                    </span>
+                    <button class="view-logs-btn" onclick="toggleLogs()">
+                        <i class="fas fa-list-ul"></i> History (200)
+                    </button>
+                </div>
+                <div id="sync-history-table" style="display: none;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sync Time</th>
+                                <th>Report Type</th>
+                                <th>Target Period</th>
+                                <th>Records</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="messages" id="messages"></div>
+            
+            <div class="input-area">
+                <textarea id="input" placeholder="Ask Me ..."></textarea>
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/htmls/script.js"></script>
+</body>
+</html>

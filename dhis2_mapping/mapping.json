@@ -1,0 +1,22 @@
+{
+  "orgUnit": "ImspTQPwCqd",
+  "reports": {
+    "DailySummary": {
+      "mappings": [
+        { 
+          "sql_column": "Total_Active_Patients", 
+          "dataElement": "fbfJHSPpUQD", 
+          "row": 0 
+        }
+      ]
+    },
+    "PatientGrid": {
+      "mappings": [
+        { "comment": "Patient 1 - ID", "sql_column": "identifier", "row": 0, "dataElement": "cYeuwXTCPkU" },
+        { "comment": "Patient 1 - Nom", "sql_column": "given_name", "row": 0, "dataElement": "Jtf34kNZhzP" },
+        { "comment": "Patient 2 - ID", "sql_column": "identifier", "row": 1, "dataElement": "cYeuwXTCPkU" },
+        { "comment": "Patient 2 - Nom", "sql_column": "given_name", "row": 1, "dataElement": "Jtf34kNZhzP" }
+      ]
+    }
+  }
+}

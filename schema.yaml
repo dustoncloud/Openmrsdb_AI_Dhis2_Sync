@@ -1,0 +1,122 @@
+# -------------------------------------------------------------------------
+# BAHMNI DATABASE SCHEMA DEFINITION
+# -------------------------------------------------------------------------
+# Author:      Deepak Neupane
+# Version:     1.0.0
+# License:     MIT
+# Description: Mapping for Bahmni/OpenMRS tables to AI-friendly entities.
+#              Used by LLM to generate SQL & for DHIS2 synchronization.
+# -------------------------------------------------------------------------
+database_type: MariaDB / MySQL (OpenMRS/Bahmni)
+description: >
+  Comprehensive schema for Bahmni/OpenMRS. 
+  Rules: Always use 'voided = 0' or 'retired = 0'.
+  Patient Identity: Join person -> patient -> patient_identifier.
+
+tables:
+  - name: person
+    description: Base demographic data.
+    columns:
+      - person_id: Primary Key
+      - gender: M/F
+      - birthdate: Date of birth
+      - date_created: Registration timestamp
+      - voided: 0 = active
+
+  - name: patient
+    description: Links person to clinical patient status.
+    columns:
+      - patient_id: Primary Key (matches person_id)
+      - creator: User who registered them
+      - voided: 0 = active
+
+  - name: patient_identifier
+    description: Stores the MRN (Patient ID).
+    columns:
+      - patient_id: Foreign Key
+      - identifier: The actual ID string (e.g., 'GAN1001')
+      - identifier_type: Foreign Key to patient_identifier_type
+
+  - name: visit
+    description: Groups encounters into a stay (e.g., IPD or OPD Visit).
+    columns:
+      - visit_id: Primary Key
+      - patient_id: Foreign Key
+      - visit_type_id: 1=OPD, 2=IPD (usually)
+      - date_started: Start of visit
+      - date_stopped: End of visit (If NULL, patient is CURRENTLY admitted)
+      - voided: 0 = active
+
+  - name: encounter
+    description: Specific clinical event (Consultation, Vitals, Lab).
+    columns:
+      - encounter_id: Primary Key
+      - patient_id: Foreign Key
+      - visit_id: Foreign Key (Link to the parent visit)
+      - encounter_datetime: Time of event
+      - encounter_type: Foreign Key to encounter_type (OPD, Lab, Radiology)
+      - voided: 0 = active
+
+  - name: obs
+    description: Clinical observations (EAV model).
+    columns:
+      - obs_id: Primary Key
+      - person_id: Foreign Key
+      - encounter_id: Foreign Key
+      - concept_id: Question ID
+      - value_numeric: Number answer
+      - value_text: String answer
+      - value_coded: Concept ID answer (join concept_name for label)
+      - obs_datetime: When it happened
+      - voided: 0 = active
+
+  - name: concept_name
+    description: Names for clinical concepts.
+    columns:
+      - concept_id: Primary Key
+      - name: Text label
+      - locale: 'en' or 'fr'
+      - concept_name_type: 'FULLY_SPECIFIED'
+
+  - name: patient_program
+    description: Chronic care enrollments (HIV, TB, MCH).
+    columns:
+      - patient_program_id: Primary Key
+      - patient_id: Foreign Key
+      - program_id: Foreign Key to program table
+      - date_enrolled: Enrollment date
+      - date_completed: Discharge date from program
+      - voided: 0 = active
+
+  - name: orders
+    description: Parent table for all prescriptions and lab orders.
+    columns:
+      - order_id: Primary Key
+      - order_type_id: 1=Drug, 2=Test
+      - concept_id: The drug or test requested
+      - encounter_id: The encounter where it was ordered
+      - date_activated: When it was ordered
+      - voided: 0 = active
+
+  - name: drug_order
+    description: Specific details for medication orders.
+    columns:
+      - order_id: Matches orders.order_id
+      - dose: Amount
+      - units: mg/ml
+      - frequency: OD, BD, TID
+
+  - name: diagnosis
+    description: Clinical diagnoses.
+    columns:
+      - diagnosis_id: Primary Key
+      - encounter_id: Foreign Key
+      - patient_id: Foreign Key
+      - diagnosis_label: Text of diagnosis
+      - certainty: 'CONFIRMED' or 'PRESUMED'
+      - voided: 0 = active
+
+### BAHMNI LOGIC RULES:
+# 1. Active IPD: Join visit where date_stopped IS NULL.
+# 2. Vitals: Query obs table where concept_id in (vitals_group).
+# 3. Lab: Query obs where concept_id in (lab_set) or check accessions.
