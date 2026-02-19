@@ -43,5 +43,7 @@ bahmni-ai:
     restart: unless-stopped
 
 3. Browse the URL http://localhost:9000/ and password is insecure Admin123 to login in (the login is Hardcoded Client Side Authentication Bypass from JavaScript)
+<img width="697" height="702" alt="image" src="https://github.com/user-attachments/assets/fbce71fd-ecfe-430f-bbf0-75ed1a55ae51" />
+
 
 By: Deepak Neupane
