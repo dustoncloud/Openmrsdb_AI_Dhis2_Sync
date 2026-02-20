@@ -22,8 +22,7 @@ class DHIS2Mapper:
 
     def transform(self, sql_rows, period, report_name):
         """
-        Processes multi-row, multi-column data.
-        Accepts any value type (Text, Numeric, etc.)
+        MODIFIED: Now handles dynamic rows and pulls COC from JSON.
         """
         data_values = []
         report_config = self.config.get("reports", {}).get(report_name, {})
@@ -33,34 +32,33 @@ class DHIS2Mapper:
             print(f"Warning: No mapping rules found for report: {report_name}")
             return None
 
-        for rule in rules:
-            col_name = rule["sql_column"]
-            row_idx = rule.get("row", 0)
-            
-            # 1. Row Check: Ensures the row exists in the results
-            if len(sql_rows) > row_idx:
-                target_row = sql_rows[row_idx]
+        # CHANGE 1: Switched to a nested loop. 
+        for row_data in sql_rows:
+            for rule in rules:
+                col_name = rule["sql_column"]
+                coc_id = rule.get("categoryOptionCombo")
                 
-                # 2. Column Check: Ensures the column exists in that row
-                if col_name in target_row:
-                    val = target_row[col_name]
+                # Check if the column exists in this specific row of data
+                if col_name in row_data:
+                    val = row_data[col_name]
                     
-                    # Skip only if truly empty/null to avoid DHIS2 400 errors
+                    # Skip empty values to prevent DHIS2 API errors (400 Bad Request)
                     if val is None or str(val).strip() == "":
                         continue
                     
-                    # Package the data - DHIS2 values are always sent as strings
-                    data_values.append({
-                        "dataElement": rule["dataElement"],
-                        "categoryOptionCombo": rule.get("categoryOptionCombo", "HllvX50cXC0"),
-                        "orgUnit": self.org_unit,
-                        "period": period,
-                        "value": str(val).strip()
-                    })
+                    if coc_id:
+                        data_values.append({
+                            "dataElement": rule["dataElement"],
+                            "categoryOptionCombo": coc_id,
+                            "orgUnit": self.org_unit,
+                            "period": period,
+                            "value": str(val).strip()
+                        })
+                    else:
+                        print(f"Mapping Warning: No categoryOptionCombo found in JSON for {col_name}")
                 else:
+                    # Log if the AI generated a column name that doesn't match your JSON
                     print(f"Mapping Error: Column '{col_name}' not found in SQL results.")
-            else:
-                print(f"Mapping Error: Row {row_idx} requested, but only {len(sql_rows)} rows returned.")
         
-        # Return the payload only if we have values to send
+        # Return the formatted payload for the DHIS2 /dataValueSets endpoint
         return {"dataValues": data_values} if data_values else None
