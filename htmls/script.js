@@ -1,12 +1,22 @@
 /* Bahmni AI Reporting Suite
- Copyright (c) 2025 [Deepak Neupane ]
+ Copyright (c) 2025 [Deepak Neupane]
  *https://github.com/dustoncloud
- * /
+ */ // <--- FIXED: Removed the space between * and /
 
 let currentReportData = null;
 let currentReportName = "DailySummary";
 
-// INITIALIZATION & LOG FETCHING 
+// --- INITIALIZATION & LOG FETCHING ---
+
+// Check if user was already logged in when page loads
+window.onload = () => {
+    if (localStorage.getItem("bahmni_login") === "true") {
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("app").style.display = "flex";
+        showWelcome();
+        loadSyncLogs();
+    }
+};
 
 async function loadSyncLogs() {
     try {
@@ -44,7 +54,7 @@ function showWelcome() {
     const msgArea = document.getElementById('messages');
     const welcomeHtml = `
         <div class="ai-msg" style="border-left: 4px solid #3182ce;">
-            <strong>👋 Welcome to Database AI + Bahmni>DHIS2 Integration Assistant</strong>
+            <strong>👋 Welcome to Database AI + Bahmni > DHIS2 Integration Assistant</strong>
             <p style="font-size: 13px; margin-top: 5px; color: #cbd5e0;">
                 I can help you query medical records and sync them to DHIS2. 
                 <br><br>
@@ -54,17 +64,27 @@ function showWelcome() {
     msgArea.innerHTML = welcomeHtml;
 }
 
+// LOGIN FUNCTION
 function login() {
-    const pwd = document.getElementById("pwd").value.trim();
+    const pwdInput = document.getElementById("pwd");
+    const pwd = pwdInput.value.trim();
+    
+    // Matches "Admin123" as per your logic
     if (pwd === "Admin123") { 
+        localStorage.setItem("bahmni_login", "true"); // Save session
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("app").style.display = "flex";
         showWelcome();
         loadSyncLogs(); 
-    } else { alert("Invalid Password"); }
+    } else { 
+        alert("Invalid Password"); 
+    }
 }
 
-function logout() { location.reload(); }
+function logout() { 
+    localStorage.removeItem("bahmni_login");
+    location.reload(); 
+}
 
 function newChat() { 
     document.getElementById("messages").innerHTML = ""; 
@@ -73,9 +93,12 @@ function newChat() {
     showWelcome(); 
 }
 
-// CORE UTILITIES
+// --- CORE UTILITIES ---
 
-function preset(q) { document.getElementById("input").value = q; sendMessage(); }
+function preset(q) { 
+    document.getElementById("input").value = q; 
+    sendMessage(); 
+}
 
 function toggleSyncPanel(checkbox) {
     const msgContainer = checkbox.closest('.ai-msg');
@@ -103,7 +126,7 @@ function downloadCSV() {
     a.click();
 }
 
-// COMMUNICATION
+// --- COMMUNICATION ---
 
 async function sendMessage() {
     const input = document.getElementById('input');
@@ -205,7 +228,7 @@ async function sendMessage() {
     }
 }
 
-// DHIS2 SYNC ENGINE 
+// --- DHIS2 SYNC ENGINE ---
 
 async function triggerDHIS2Sync(btn) {
     const msgContainer = btn.closest('.ai-msg');
