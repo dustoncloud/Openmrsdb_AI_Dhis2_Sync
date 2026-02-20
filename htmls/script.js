@@ -1,8 +1,7 @@
 /* Bahmni AI Reporting Suite
  Copyright (c) 2025 [Deepak Neupane]
  *https://github.com/dustoncloud
- */ // <--- FIXED: Removed the space between * and /
-
+ */ 
 let currentReportData = null;
 let currentReportName = "DailySummary";
 
@@ -285,3 +284,4 @@ async function triggerDHIS2Sync(btn) {
         btn.innerText = "🚀 Push to DHIS2";
     }
 }
+
