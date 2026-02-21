@@ -1,11 +1,11 @@
 # ---------------------------------------------------------
 # Bahmni AI + DHIS2 Sync Tool
-# Copyright (c) 2025 [Deepak Neupane]
-# Licensed under the MIT License (see LICENSE for details)
+# Copyright (c) 2026 [Deepak Neupane]
 # ---------------------------------------------------------
 import os
 import re
 import json
+import sqlite3
 import requests
 from datetime import datetime
 from fastapi import FastAPI
@@ -25,13 +25,14 @@ mapper = DHIS2Mapper()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(BASE_DIR, "sync_logs.json")
-print(f"DEBUG: Logs will be stored at: {LOG_FILE}")
+DB_PATH = os.path.join(BASE_DIR, "memory_store.db")
 
 app.mount("/htmls", StaticFiles(directory="htmls"), name="htmls")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 DHIS2_BASE_URL = "https://play.im.dhis2.org/stable-2-42-4/api/dataValueSets"
 
+# --- Models ---
 class QueryPayload(BaseModel):
     question: str
     start_date: str
@@ -44,7 +45,14 @@ class SyncPayload(BaseModel):
     report_name: str
     period: str
 
-@app.get("/")
+class FeedbackPayload(BaseModel):
+    question: str
+    sql: str
+    report_name: str
+
+# --- Core Routes ---
+
+@app.get("/index.html")
 async def serve_index(): return FileResponse('index.html')
 
 @app.get("/ai/sync/logs")
@@ -72,7 +80,6 @@ def ai_query(payload: QueryPayload):
     except Exception as e:
         return {"sql": sql, "data": [{"Error": str(e)}], "report_name": "Error"}
     
-    # Logic to determine Report Name
     if any(k in user_q for k in ["list", "grid", "patient", "name"]):
         report_name = "PatientGrid"
     elif any(k in user_q for k in ["weight", "vitals", "poids"]):
@@ -80,26 +87,20 @@ def ai_query(payload: QueryPayload):
     else:
         report_name = "DailySummary"
     
-    #  NEW: Contextual Log Checking 
     last_sync_info = None
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, "r") as f:
             try:
                 logs = json.load(f)
-                # Find the first entry that matches this specific report_name
                 for log in logs:
                     if log.get("report") == report_name:
                         last_sync_info = log
                         break
-            except:
-                pass
+            except: pass
 
-    return {
-        "sql": sql, 
-        "data": data, 
-        "report_name": report_name,
-        "last_sync": last_sync_info # This tells the UI when this specific report was last sent
-    }
+    return {"sql": sql, "data": data, "report_name": report_name, "last_sync": last_sync_info}
+
+# --- Sync Logic ---
 
 @app.post("/ai/sync/dhis2")
 def sync_to_dhis2(payload: SyncPayload):
@@ -129,31 +130,106 @@ def sync_to_dhis2(payload: SyncPayload):
                 "count": success,
                 "status": "Success"
             }
-            
-            #  ROBUST WRITE LOGIC 
             logs = []
-            try:
-                if os.path.exists(LOG_FILE):
-                    with open(LOG_FILE, "r") as f:
-                        content = f.read().strip()
-                        if content: # Only load if file isn't empty
-                            logs = json.loads(content)
-                
-                # Insert at top, trim to 200
-                logs.insert(0, new_log)
-                logs = logs[:200]
-                
-                with open(LOG_FILE, "w") as f:
-                    json.dump(logs, f, indent=4)
-                
-                print(f"LOG SUCCESS: Written to {LOG_FILE}")
-            except Exception as log_err:
-                print(f"LOG ERROR: Could not write to file: {log_err}")
+            if os.path.exists(LOG_FILE):
+                with open(LOG_FILE, "r") as f:
+                    content = f.read().strip()
+                    if content: logs = json.loads(content)
+            
+            logs.insert(0, new_log)
+            with open(LOG_FILE, "w") as f:
+                json.dump(logs[:200], f, indent=4)
 
             return {"status": "completed", "message": f"Successfully synced {success} records."}
         else:
-            conflicts = res_json.get("response", {}).get("importCount", {}) # or res_json.get("conflicts")
-            return {"status": "warning", "message": "DHIS2 accepted the request but 0 records were changed (likely duplicate data)."}
-            
+            return {"status": "warning", "message": "DHIS2 accepted request but 0 records changed."}
     except Exception as e:
         return {"status": "error", "message": f"Sync Error: {str(e)}"}
+
+# --- Moderation & Learning Routes ---
+
+@app.on_event("startup")
+def setup_db():
+    """Matches the exact schema from feedback_store.py"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS feedback_loop (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            question TEXT NOT NULL,
+            sql_query TEXT NOT NULL,
+            report_name TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    print("✓ Moderation Database Initialized with sql_query column")
+
+@app.post("/ai/feedback/suggest")
+async def suggest_sql(data: dict):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Standardized to look for sql_query
+        cursor.execute("SELECT status FROM feedback_loop WHERE question = ? AND sql_query = ?", 
+                       (data['question'], data['sql']))
+        existing = cursor.fetchone()
+        
+        if existing:
+            status_text = "Approved" if existing[0] == 'approved' else "Pending"
+            conn.close()
+            return {"status": "exists", "message": f"Already {status_text}"}
+
+        # Insert using standardized sql_query column
+        cursor.execute("""
+            INSERT INTO feedback_loop (question, sql_query, report_name, status) 
+            VALUES (?, ?, ?, 'pending')
+        """, (data['question'], data['sql'], data['report_name']))
+        
+        conn.commit()
+        conn.close()
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/ai/admin/review")
+def get_pending_queries():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        # Fetching sql_query column to match DB
+        cursor.execute("SELECT id, question, sql_query, report_name FROM feedback_loop WHERE status = 'pending'")
+        rows = cursor.fetchall()
+        conn.close()
+        # We still return 'sql' as the key to the frontend to keep script.js happy
+        return [{"id": r[0], "question": r[1], "sql": r[2], "report": r[3]} for r in rows]
+    except Exception as e:
+        print(f"Admin Review Error: {e}")
+        return []
+
+@app.post("/ai/admin/approve/{query_id}")
+def approve_query(query_id: int):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE feedback_loop SET status = 'approved' WHERE id = ?", (query_id,))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Approved."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    
+@app.post("/ai/admin/delete/{query_id}")
+def delete_query(query_id: int):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM feedback_loop WHERE id = ?", (query_id,))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Query deleted successfully."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
