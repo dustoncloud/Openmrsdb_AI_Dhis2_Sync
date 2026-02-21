@@ -1,3 +1,8 @@
+# ---------------------------------------------------------
+# Bahmni AI + DHIS2 Sync Tool
+# Copyright (c) 2025 [Deepak Neupane]
+# Licensed under the MIT License (see LICENSE for details)
+# ---------------------------------------------------------
 import sqlite3
 import os
 
