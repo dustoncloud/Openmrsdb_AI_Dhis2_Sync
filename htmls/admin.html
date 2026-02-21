@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Training Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #1a202c; --card: #2d3748; --text: #f7fafc;
+            --primary: #63b3ed; --success: #48bb78; --danger: #f56565;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; padding: 30px; margin: 0; }
+        .container { max-width: 1200px; margin: auto; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #4a5568; padding-bottom: 20px; }
+        
+        /* The Grid Layout for many items */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+
+        .review-card { 
+            background: var(--card); border-radius: 12px; padding: 20px; 
+            border: 1px solid #4a5568; display: flex; flex-direction: column;
+            transition: 0.2s;
+        }
+        .review-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px rgba(0,0,0,0.2); }
+        
+        .card-meta { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .badge { background: #805ad5; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        
+        .query-title { font-weight: 600; color: var(--primary); margin-bottom: 10px; font-size: 15px; }
+        
+        .sql-box { 
+            background: #1a202c; padding: 12px; border-radius: 6px; 
+            font-family: monospace; font-size: 12px; color: #cbd5e0;
+            white-space: pre-wrap; margin-bottom: 20px; flex-grow: 1;
+            border: 1px solid #111; max-height: 120px; overflow-y: auto;
+        }
+
+        .controls { display: flex; gap: 10px; }
+        button { 
+            flex: 1; padding: 10px; border: none; border-radius: 6px; 
+            cursor: pointer; font-weight: bold; font-size: 13px; 
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .btn-approve { background: var(--success); color: white; }
+        .btn-delete { background: #4a5568; color: white; }
+        .btn-delete:hover { background: var(--danger); }
+        
+        .empty-state { grid-column: 1/-1; text-align: center; padding: 100px; color: #718096; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h2 style="margin:0;"><i class="fas fa-brain"></i> Training Moderation</h2>
+                <p style="color: #a0aec0; font-size: 14px; margin-top: 5px;">Review user queries before adding them to AI memory.</p>
+            </div>
+            <button onclick="loadPending()" style="background:none; border: 1px solid var(--primary); color: var(--primary); padding: 8px 15px; border-radius: 5px; cursor: pointer;">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+        </div>
+
+        <div id="pending-grid" class="grid">
+            </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function loadPending() {
+            const grid = document.getElementById('pending-grid');
+            grid.innerHTML = "<p>Loading...</p>";
+            
+            try {
+                const res = await fetch(`${API_BASE}/ai/admin/review`);
+                const data = await res.json();
+
+                if (!data || data.length === 0) {
+                    grid.innerHTML = `<div class="empty-state">
+                        <i class="fas fa-ghost" style="font-size: 40px; margin-bottom: 10px;"></i>
+                        <p>No pending queries to review!</p>
+                    </div>`;
+                    return;
+                }
+
+                grid.innerHTML = data.map(item => `
+                    <div class="review-card" id="card-${item.id}">
+                        <div class="card-meta">
+                            <span class="badge">${item.report}</span>
+                            <span style="color:#718096; font-size:12px;">ID: #${item.id}</span>
+                        </div>
+                        <div class="query-title">"${item.question}"</div>
+                        <div class="sql-box">${item.sql}</div>
+                        <div class="controls">
+                            <button class="btn-delete" onclick="handleAction('delete', ${item.id})">
+                                <i class="fas fa-trash"></i> Reject
+                            </button>
+                            <button class="btn-approve" onclick="handleAction('approve', ${item.id})">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                grid.innerHTML = "<p style='color:var(--danger)'>Error connecting to server.</p>";
+            }
+        }
+
+        async function handleAction(action, id) {
+            const card = document.getElementById(`card-${id}`);
+            const confirmMsg = action === 'delete' ? "Permanently delete this suggestion?" : "Approve this for AI training?";
+            
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/ai/admin/${action}/${id}`, { method: 'POST' });
+                const result = await res.json();
+                
+                if (result.status === "success") {
+                    card.style.opacity = '0';
+                    card.style.transform = "scale(0.9)";
+                    setTimeout(() => {
+                        card.remove();
+                        if (document.querySelectorAll('.review-card').length === 0) loadPending();
+                    }, 300);
+                }
+            } catch (e) {
+                alert("Operation failed: " + e.message);
+            }
+        }
+
+        window.onload = loadPending;
+    </script>
+</body>
+</html>

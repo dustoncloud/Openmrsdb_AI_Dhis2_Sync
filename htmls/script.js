@@ -1,5 +1,5 @@
 /* Bahmni AI Reporting Suite
- Copyright (c) 2025 [Deepak Neupane]
+ Copyright (c) 2026 [Deepak Neupane]
  *https://github.com/dustoncloud
  */ 
 let currentReportData = null;
@@ -7,7 +7,6 @@ let currentReportName = "DailySummary";
 
 // --- INITIALIZATION & LOG FETCHING ---
 
-// Check if user was already logged in when page loads
 window.onload = () => {
     if (localStorage.getItem("bahmni_login") === "true") {
         document.getElementById("loginBox").style.display = "none";
@@ -68,9 +67,8 @@ function login() {
     const pwdInput = document.getElementById("pwd");
     const pwd = pwdInput.value.trim();
     
-    // Matches "Admin123" as per your logic
     if (pwd === "Admin123") { 
-        localStorage.setItem("bahmni_login", "true"); // Save session
+        localStorage.setItem("bahmni_login", "true"); 
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("app").style.display = "flex";
         showWelcome();
@@ -125,6 +123,43 @@ function downloadCSV() {
     a.click();
 }
 
+// UPDATED: LEARNING SUGGESTION UTILITY
+async function suggestForLearning(btn, question, sql, reportName) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Checking...`;
+
+    try {
+        const response = await fetch('/ai/feedback/suggest', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                question: question,
+                sql: sql,
+                report_name: reportName
+            })
+        });
+        const result = await response.json();
+        
+        if (result.status === "success" || result.status === "exists") {
+            // Apply the "Already Trained/In Review" look
+            btn.style.background = "#2d3748";
+            btn.style.color = result.status === "exists" ? "#63b3ed" : "#48bb78";
+            btn.style.cursor = "default";
+            btn.innerHTML = result.status === "exists" 
+                ? `<i class="fas fa-info-circle"></i> ${result.message}` 
+                : `<i class="fas fa-check-circle"></i> Submitted`;
+            btn.onclick = null;
+        } else {
+            alert("Error: " + result.message);
+            btn.disabled = false;
+            btn.innerHTML = `⭐ Train AI`;
+        }
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = `⭐ Train AI`;
+    }
+}
+
 // --- COMMUNICATION ---
 
 async function sendMessage() {
@@ -169,11 +204,13 @@ async function sendMessage() {
         }
 
         let tableHtml = `<table style="width:100%; border-collapse: collapse; margin-top:10px; font-size:13px; color: white; background-color: #2c2c2c; border: 1px solid #444;">`;
-        if (currentReportData && currentReportData.length > 0) {
+        if (currentReportData && currentReportData.length > 0 && !currentReportData[0].Error) {
             const headers = Object.keys(currentReportData[0]);
             tableHtml += `<thead><tr style="background-color: #444;">${headers.map(h => `<th style="padding:10px; border:1px solid #555; text-align:left;">${h}</th>`).join('')}</tr></thead><tbody>`;
             tableHtml += currentReportData.map((row, i) => `<tr style="background-color: ${i%2===0?'#333':'#3d3d3d'};">${headers.map(h => `<td style="padding:10px; border:1px solid #555;">${row[h]}</td>`).join('')}</tr>`).join('');
             tableHtml += '</tbody>';
+        } else if (currentReportData && currentReportData[0] && currentReportData[0].Error) {
+            tableHtml = `<div style="color:#f56565; padding:10px;">Error: ${currentReportData[0].Error}</div>`;
         }
         tableHtml += '</table>';
 
@@ -183,6 +220,10 @@ async function sendMessage() {
             {v:"05", n:"May"}, {v:"06", n:"Jun"}, {v:"07", n:"Jul"}, {v:"08", n:"Aug"},
             {v:"09", n:"Sep"}, {v:"10", n:"Oct"}, {v:"11", n:"Nov"}, {v:"12", n:"Dec"}
         ].map(m => `<option value="${m.v}">${m.n}</option>`).join('');
+
+        // Clean strings for safely injecting into onclick attributes
+        const safeQ = question.replace(/`/g, '\\`').replace(/'/g, "\\'");
+        const safeSQL = result.sql.replace(/`/g, '\\`').replace(/'/g, "\\'");
 
         let aiHtml = `
             <div class="ai-msg">
@@ -194,10 +235,18 @@ async function sendMessage() {
                 <div style="overflow-x:auto;">${tableHtml}</div>
                 
                 <div style="margin-top:12px; display:flex; align-items:center; justify-content: space-between; gap:10px; background:#1a202c; padding:10px; border-radius:6px; border: 1px solid #333;">
-                    <button onclick="downloadCSV()" style="background:#4a5568; color:white; border:none; padding:8px 14px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">📥 CSV</button>
+                    <div style="display:flex; gap:8px;">
+                        <button onclick="downloadCSV()" style="background:#4a5568; color:white; border:none; padding:8px 14px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">📥 CSV</button>
+                        
+                        <button onclick="suggestForLearning(this, \`${safeQ}\`, \`${safeSQL}\`, '${currentReportName}')" 
+                                style="background:#805ad5; color:white; border:none; padding:8px 14px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">
+                            ⭐ Train AI
+                        </button>
+                    </div>
+
                     <label style="color:#a0aec0; font-size:12px; cursor:pointer; display: flex; align-items: center; gap: 8px;">
                         <input type="checkbox" onchange="toggleSyncPanel(this)" class="sync-toggle-check" style="cursor:pointer; width:15px; height:15px;"> 
-                        Sync this data to DHIS2?
+                        Sync to DHIS2?
                     </label>
                 </div>
 
@@ -284,4 +333,3 @@ async function triggerDHIS2Sync(btn) {
         btn.innerText = "🚀 Push to DHIS2";
     }
 }
-
