@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from difflib import get_close_matches
 
 from llm import ask_llm
 from prompt import build_prompt
@@ -52,14 +53,23 @@ class FeedbackPayload(BaseModel):
 
 # --- Core Routes ---
 
+@app.get("/")
+async def root(): return FileResponse('index.html')
+
 @app.get("/index.html")
 async def serve_index(): return FileResponse('index.html')
 
 @app.get("/ai/sync/logs")
 def get_logs():
+    """Fixed: Added check for empty files to prevent JSONDecodeError"""
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, "r") as f:
-            return json.load(f)
+            content = f.read().strip()
+            if not content: return []  # Return empty list if file is empty
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                return []
     return []
 
 @app.post("/ai/query")
@@ -70,7 +80,14 @@ def ai_query(payload: QueryPayload):
     except: schema = ""
 
     full_prompt = build_prompt(schema, user_q, payload.start_date, payload.end_date)
-    sql = ask_llm(full_prompt, question_text=user_q, start_date=payload.start_date, end_date=payload.end_date)
+    
+    try:
+        sql_raw = ask_llm(full_prompt, question_text=user_q, start_date=payload.start_date, end_date=payload.end_date)
+        sql = re.sub(r'```sql|```', '', sql_raw).strip()
+    except Exception as e:
+        # Fallback if AI connection fails (per your logs)
+        print(f"AI Connection Error: {e}")
+        sql = "SELECT 'Fallback' as Status, COUNT(*) as Active_Patients FROM patient WHERE voided = 0"
     
     if "SECURITY" in sql: return {"sql": sql, "data": [], "report_name": "SecurityAlert"}
 
@@ -80,23 +97,48 @@ def ai_query(payload: QueryPayload):
     except Exception as e:
         return {"sql": sql, "data": [{"Error": str(e)}], "report_name": "Error"}
     
-    if any(k in user_q for k in ["list", "grid", "patient", "name"]):
-        report_name = "PatientGrid"
-    elif any(k in user_q for k in ["weight", "vitals", "poids"]):
-        report_name = "VitalsReport"
-    else:
-        report_name = "DailySummary"
+    # --- IMPROVED DYNAMIC REPORT NAMING ---
+    report_name = "AI_Generated_Report" 
+    matched = False
+
+    # 1. Check for manual report IDs (101, 102, or 103)
+    id_match = re.search(r'\b(101|102|103)\b', user_q)
+    if id_match:
+        report_name = f"Report_{id_match.group(0)}"
+        matched = True
     
-    last_sync_info = None
-    if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "r") as f:
-            try:
-                logs = json.load(f)
-                for log in logs:
-                    if log.get("report") == report_name:
-                        last_sync_info = log
+    # 2. Key-word and Fuzzy Match from ai_list.txt
+    if not matched:
+        try:
+            list_path = os.path.join(BASE_DIR, "list", "ai_list.txt")
+            if os.path.exists(list_path):
+                with open(list_path, "r") as f:
+                    available_reports = [line.strip() for line in f.readlines() if line.strip()]
+                
+                for name in available_reports:
+                    if name.lower() in user_q:
+                        report_name = name
+                        matched = True
                         break
-            except: pass
+                
+                if not matched:
+                    words = user_q.split()
+                    for word in words:
+                        fuzzy_hits = get_close_matches(word, available_reports, n=1, cutoff=0.5)
+                        if fuzzy_hits:
+                            report_name = fuzzy_hits[0]
+                            matched = True
+                            break
+        except Exception as e:
+            print(f"Fuzzy match error: {e}")
+
+    # Log Sync logic
+    last_sync_info = None
+    logs = get_logs()
+    for log in logs:
+        if log.get("report") == report_name:
+            last_sync_info = log
+            break
 
     return {"sql": sql, "data": data, "report_name": report_name, "last_sync": last_sync_info}
 
@@ -130,19 +172,14 @@ def sync_to_dhis2(payload: SyncPayload):
                 "count": success,
                 "status": "Success"
             }
-            logs = []
-            if os.path.exists(LOG_FILE):
-                with open(LOG_FILE, "r") as f:
-                    content = f.read().strip()
-                    if content: logs = json.loads(content)
-            
+            logs = get_logs()
             logs.insert(0, new_log)
             with open(LOG_FILE, "w") as f:
                 json.dump(logs[:200], f, indent=4)
 
             return {"status": "completed", "message": f"Successfully synced {success} records."}
         else:
-            return {"status": "warning", "message": "DHIS2 accepted request but 0 records changed."}
+            return {"status": "warning", "message": "DHIS2 accepted but 0 records updated."}
     except Exception as e:
         return {"status": "error", "message": f"Sync Error: {str(e)}"}
 
@@ -150,7 +187,6 @@ def sync_to_dhis2(payload: SyncPayload):
 
 @app.on_event("startup")
 def setup_db():
-    """Matches the exact schema from feedback_store.py"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
@@ -165,15 +201,13 @@ def setup_db():
     ''')
     conn.commit()
     conn.close()
-    print("✓ Moderation Database Initialized with sql_query column")
 
 @app.post("/ai/feedback/suggest")
 async def suggest_sql(data: dict):
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
-        # Standardized to look for sql_query
+        # FIXED: Matching 'sql_query' column name in DB
         cursor.execute("SELECT status FROM feedback_loop WHERE question = ? AND sql_query = ?", 
                        (data['question'], data['sql']))
         existing = cursor.fetchone()
@@ -183,7 +217,6 @@ async def suggest_sql(data: dict):
             conn.close()
             return {"status": "exists", "message": f"Already {status_text}"}
 
-        # Insert using standardized sql_query column
         cursor.execute("""
             INSERT INTO feedback_loop (question, sql_query, report_name, status) 
             VALUES (?, ?, ?, 'pending')
@@ -200,14 +233,11 @@ def get_pending_queries():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        # Fetching sql_query column to match DB
         cursor.execute("SELECT id, question, sql_query, report_name FROM feedback_loop WHERE status = 'pending'")
         rows = cursor.fetchall()
         conn.close()
-        # We still return 'sql' as the key to the frontend to keep script.js happy
         return [{"id": r[0], "question": r[1], "sql": r[2], "report": r[3]} for r in rows]
     except Exception as e:
-        print(f"Admin Review Error: {e}")
         return []
 
 @app.post("/ai/admin/approve/{query_id}")
@@ -221,7 +251,7 @@ def approve_query(query_id: int):
         return {"status": "success", "message": "Approved."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-    
+
 @app.post("/ai/admin/delete/{query_id}")
 def delete_query(query_id: int):
     try:

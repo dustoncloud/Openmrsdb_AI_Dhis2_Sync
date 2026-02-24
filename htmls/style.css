@@ -319,3 +319,86 @@ body {
         #sync-history-table tr:hover 
         { background: #1a202c; 
         }
+        /* Production Log Styles */
+    .badge-report {
+        background: #2d3748;
+        color: #63b3ed;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        border: 1px solid #4a5568;
+    }
+
+    .btn-nav {
+        background: #3182ce;
+        color: white;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+    }
+
+    .btn-nav:disabled {
+        background: #2d3748;
+        color: #718096;
+        cursor: not-allowed;
+    }
+
+    #log-search-wrapper input:focus {
+        outline: 2px solid #3182ce;
+        background: #2d3748 !important;
+    }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        font-size: 13px;
+        color: white;
+        background-color: #2c2c2c;
+        border: 1px solid #444;
+    }
+            .sidebar-footer {
+            margin-top: auto;
+            padding: 15px;
+            border-top: 1px solid #2d3748;
+            background: #1a202c;
+        }
+        .dev-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #a0aec0;
+            text-decoration: none;
+            font-size: 11px;
+            transition: 0.2s;
+        }
+        .dev-info:hover { color: #63b3ed; }
+        .dev-info i { font-size: 16px; }
+        .license-tag {
+            display: inline-block;
+            margin-top: 5px;
+            font-size: 9px;
+            background: #2d3748;
+            color: #48bb78;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Essential for reformed History UI */
+        #sync-history-table {
+            background: #1a202c;
+            border: 1px solid #2d3748;
+            border-radius: 8px;
+            margin-top: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .report-table-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+        }

@@ -1,0 +1,15 @@
+PatientGrid
+VitalsReport
+DailySummary
+101
+ANC_Registry
+IPD_Admissions
+OPD_Visit_Summary
+Lab_Results_Summary
+Pharmacy_Dispense_Log
+Diagnosis_Statistical_Report
+Diabetes_Followup_List
+Hypertension_Registry
+Surgery_Schedule
+Radiology_Order_List
+Fever_Data

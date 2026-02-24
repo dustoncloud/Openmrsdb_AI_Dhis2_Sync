@@ -6,43 +6,12 @@
     <title>Bahmni AI Reporting + DHIS2 Sync</title>
     <link rel="stylesheet" href="/htmls/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        /* Sidebar Footer Credit Styles */
-        .sidebar-footer {
-            margin-top: auto;
-            padding: 15px;
-            border-top: 1px solid #2d3748;
-            background: #1a202c;
-        }
-        .dev-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #a0aec0;
-            text-decoration: none;
-            font-size: 11px;
-            transition: 0.2s;
-        }
-        .dev-info:hover { color: #63b3ed; }
-        .dev-info i { font-size: 16px; }
-        .license-tag {
-            display: inline-block;
-            margin-top: 5px;
-            font-size: 9px;
-            background: #2d3748;
-            color: #48bb78;
-            padding: 2px 6px;
-            border-radius: 3px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-    </style>
 </head>
 <body>
     <div class="login" id="loginBox">
         <div class="login-card">
             <div style="text-align: right; margin-bottom: -10px;">
-                <span style="font-size: 9px; color: #4a5568; background: #ebf8ff; padding: 2px 6px; border-radius: 10px;">v1.0.2-stable</span>
+                <span style="font-size: 9px; color: #4a5568; background: #ebf8ff; padding: 2px 6px; border-radius: 10px;">v1.1.0-prod</span>
             </div>
             <h2>🔐 Bahmni AI Login</h2>
             <p>Accessing Reporting & DHIS2 Sync</p>
@@ -110,31 +79,35 @@
             <div class="sync-log-container" id="sync-status-area">
                 <div class="latest-sync-bar">
                     <span id="last-sync-text">
-                        <i class="fas fa-history" style="margin-right:8px;"></i> No recent sync activity.
+                        <i class="fas fa-history" style="margin-right:8px;"></i> Initializing logs...
                     </span>
                     <button class="view-logs-btn" onclick="toggleLogs()">
-                        <i class="fas fa-list-ul"></i> History (200)
+                        <i class="fas fa-search"></i> Search History
                     </button>
                 </div>
+                
                 <div id="sync-history-table" style="display: none;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Sync Time</th>
-                                <th>Report Type</th>
-                                <th>Target Period</th>
-                                <th>Records</th>
-                            </tr>
-                        </thead>
-                        <tbody id="log-body"></tbody>
-                    </table>
+                    <div class="report-table-wrapper">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #2d3748; color: #a0aec0; font-size: 11px; text-transform: uppercase;">
+                                    <th style="padding: 12px; text-align: left;">Sync Time</th>
+                                    <th style="padding: 12px; text-align: left;">Report Type</th>
+                                    <th style="padding: 12px; text-align: left;">Target Period</th>
+                                    <th style="padding: 12px; text-align: left;">Records</th>
+                                </tr>
+                            </thead>
+                            <tbody id="log-body"></tbody>
+                        </table>
+                    </div>
+                    <div id="log-pagination"></div>
                 </div>
             </div>
 
             <div class="messages" id="messages"></div>
             
             <div class="input-area">
-                <textarea id="input" placeholder="Ask Me ..."></textarea>
+                <textarea id="input" placeholder="Ask Me about medical records..."></textarea>
                 <button onclick="sendMessage()">Send</button>
             </div>
         </div>
@@ -142,6 +115,4 @@
 
     <script src="/htmls/script.js"></script>
 </body>
-
 </html>
-

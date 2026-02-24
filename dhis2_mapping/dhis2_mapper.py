@@ -22,7 +22,7 @@ class DHIS2Mapper:
 
     def transform(self, sql_rows, period, report_name):
         """
-        MODIFIED: Now handles dynamic rows and pulls COC from JSON.
+        MODIFIED: Now maps specific JSON rules to specific SQL rows to prevent duplication.
         """
         data_values = []
         report_config = self.config.get("reports", {}).get(report_name, {})
@@ -32,13 +32,25 @@ class DHIS2Mapper:
             print(f"Warning: No mapping rules found for report: {report_name}")
             return None
 
-        # CHANGE 1: Switched to a nested loop. 
-        for row_data in sql_rows:
-            for rule in rules:
-                col_name = rule["sql_column"]
-                coc_id = rule.get("categoryOptionCombo")
-                
-                # Check if the column exists in this specific row of data
+        # UPDATED LOGIC: Loop through rules first to check for specific row assignments
+        for rule in rules:
+            col_name = rule["sql_column"]
+            coc_id = rule.get("categoryOptionCombo")
+            # Get the target row index from JSON (e.g., 0 for row 1, 1 for row 2)
+            target_row_idx = rule.get("row") 
+            
+            # Identify which rows from the SQL results to process for this rule
+            rows_to_process = []
+            if target_row_idx is not None:
+                # If JSON specifies a row, only process that one row
+                if 0 <= target_row_idx < len(sql_rows):
+                    rows_to_process = [sql_rows[target_row_idx]]
+            else:
+                # If no row is specified in JSON, process all rows (original behavior)
+                rows_to_process = sql_rows
+
+            for row_data in rows_to_process:
+                # Check if the column exists in this row
                 if col_name in row_data:
                     val = row_data[col_name]
                     
@@ -57,7 +69,7 @@ class DHIS2Mapper:
                     else:
                         print(f"Mapping Warning: No categoryOptionCombo found in JSON for {col_name}")
                 else:
-                    # Log if the AI generated a column name that doesn't match your JSON
+                    # Log if the SQL result column name doesn't match the JSON 'sql_column'
                     print(f"Mapping Error: Column '{col_name}' not found in SQL results.")
         
         # Return the formatted payload for the DHIS2 /dataValueSets endpoint

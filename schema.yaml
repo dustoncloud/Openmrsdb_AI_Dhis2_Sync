@@ -1,21 +1,22 @@
 # -------------------------------------------------------------------------
-# BAHMNI DATABASE SCHEMA DEFINITION
+# BAHMNI DATABASE SCHEMA DEFINITION (FULL PRODUCTION VERSION)
 # -------------------------------------------------------------------------
 # Author:      Deepak Neupane
-# Version:     1.0.0
+# Version:     1.1.0
 # License:     MIT
-# Description: Mapping for Bahmni/OpenMRS tables to AI-friendly entities.
-#              Used by LLM to generate SQL & for DHIS2 synchronization.
+# Description: Enhanced mapping for Bahmni/OpenMRS. 
+#              Optimized for LLM SQL Generation and DHIS2 Mapping.
 # -------------------------------------------------------------------------
 database_type: MariaDB / MySQL (OpenMRS/Bahmni)
-description: >
-  Comprehensive schema for Bahmni/OpenMRS. 
-  Rules: Always use 'voided = 0' or 'retired = 0'.
-  Patient Identity: Join person -> patient -> patient_identifier.
+global_rules:
+  - Always include "voided = 0" or "retired = 0" in every WHERE clause.
+  - For patient names, always join "person" to "person_name".
+  - For clinical results, join "obs" to "concept_name" to filter by question name.
+  - Date filters should apply to "date_created", "encounter_datetime", or "date_activated".
 
 tables:
   - name: person
-    description: Base demographic data.
+    description: Base demographic record for every human in the system.
     columns:
       - person_id: Primary Key
       - gender: M/F
@@ -23,100 +24,121 @@ tables:
       - date_created: Registration timestamp
       - voided: 0 = active
 
+  - name: person_name
+    description: Stores given and family names. Essential for readable reports.
+    columns:
+      - person_name_id: Primary Key
+      - person_id: Foreign Key to person.person_id
+      - given_name: First Name
+      - family_name: Last Name
+      - preferred: 1 = primary name
+      - voided: 0 = active
+
   - name: patient
-    description: Links person to clinical patient status.
+    description: Marks a person as a clinical patient.
     columns:
       - patient_id: Primary Key (matches person_id)
-      - creator: User who registered them
+      - creator: User ID who registered the patient
       - voided: 0 = active
 
   - name: patient_identifier
-    description: Stores the MRN (Patient ID).
+    description: Stores Patient IDs (MRN, National ID).
     columns:
       - patient_id: Foreign Key
-      - identifier: The actual ID string (e.g., 'GAN1001')
-      - identifier_type: Foreign Key to patient_identifier_type
+      - identifier: The actual ID (e.g., 'GAN1001')
+      - identifier_type: Link to patient_identifier_type
+      - voided: 0 = active
 
   - name: visit
-    description: Groups encounters into a stay (e.g., IPD or OPD Visit).
+    description: Groups all encounters into a hospital stay or visit.
     columns:
       - visit_id: Primary Key
       - patient_id: Foreign Key
-      - visit_type_id: 1=OPD, 2=IPD (usually)
-      - date_started: Start of visit
-      - date_stopped: End of visit (If NULL, patient is CURRENTLY admitted)
+      - visit_type_id: Type of visit (OPD/IPD)
+      - date_started: Start timestamp
+      - date_stopped: End timestamp (NULL means patient is currently ADMITTED)
       - voided: 0 = active
 
   - name: encounter
-    description: Specific clinical event (Consultation, Vitals, Lab).
+    description: A specific clinical interaction (Consultation, Lab, Vitals).
     columns:
       - encounter_id: Primary Key
       - patient_id: Foreign Key
-      - visit_id: Foreign Key (Link to the parent visit)
-      - encounter_datetime: Time of event
-      - encounter_type: Foreign Key to encounter_type (OPD, Lab, Radiology)
+      - visit_id: Foreign Key (Link to parent visit)
+      - encounter_datetime: Time of the event
+      - encounter_type: Foreign Key to encounter_type
       - voided: 0 = active
 
   - name: obs
-    description: Clinical observations (EAV model).
+    description: The EAV (Entity-Attribute-Value) table for all clinical data.
     columns:
       - obs_id: Primary Key
       - person_id: Foreign Key
       - encounter_id: Foreign Key
-      - concept_id: Question ID
-      - value_numeric: Number answer
-      - value_text: String answer
-      - value_coded: Concept ID answer (join concept_name for label)
-      - obs_datetime: When it happened
+      - concept_id: The "Question" ID
+      - value_numeric: Numeric answer (Weight, Temp)
+      - value_text: String answer (Comments)
+      - value_coded: The "Answer" Concept ID (Join concept_name for label)
+      - obs_datetime: Timestamp of observation
       - voided: 0 = active
 
   - name: concept_name
-    description: Names for clinical concepts.
+    description: Human-readable names for all concepts.
     columns:
-      - concept_id: Primary Key
-      - name: Text label
-      - locale: 'en' or 'fr'
+      - concept_id: Foreign Key
+      - name: The text label (e.g., 'Weight', 'Malaria Test')
+      - locale: 'en'
       - concept_name_type: 'FULLY_SPECIFIED'
+      - voided: 0 = active
 
   - name: patient_program
-    description: Chronic care enrollments (HIV, TB, MCH).
+    description: Tracks chronic care (HIV, TB, Nutrition).
     columns:
       - patient_program_id: Primary Key
       - patient_id: Foreign Key
-      - program_id: Foreign Key to program table
-      - date_enrolled: Enrollment date
-      - date_completed: Discharge date from program
+      - program_id: Foreign Key
+      - date_enrolled: Start date
+      - date_completed: Discharge/End date
       - voided: 0 = active
 
   - name: orders
-    description: Parent table for all prescriptions and lab orders.
+    description: Master table for prescriptions and lab requests.
     columns:
       - order_id: Primary Key
-      - order_type_id: 1=Drug, 2=Test
-      - concept_id: The drug or test requested
-      - encounter_id: The encounter where it was ordered
-      - date_activated: When it was ordered
+      - order_type_id: 1=Drug Order, 2=Test Order
+      - concept_id: The specific drug or test ordered
+      - encounter_id: Foreign Key
+      - patient_id: Foreign Key
+      - date_activated: When the order was placed
       - voided: 0 = active
 
   - name: drug_order
-    description: Specific details for medication orders.
+    description: Specific details for pharmacy orders.
     columns:
-      - order_id: Matches orders.order_id
-      - dose: Amount
-      - units: mg/ml
+      - order_id: Foreign Key to orders.order_id
+      - dose: Numeric dose
+      - units: mg, ml, etc.
       - frequency: OD, BD, TID
 
+  - name: test_order
+    description: Specific details for laboratory tests.
+    columns:
+      - order_id: Foreign Key to orders.order_id
+      - specimen_source: Blood, Urine, etc.
+
   - name: diagnosis
-    description: Clinical diagnoses.
+    description: Explicit clinical diagnosis table.
     columns:
       - diagnosis_id: Primary Key
       - encounter_id: Foreign Key
       - patient_id: Foreign Key
-      - diagnosis_label: Text of diagnosis
+      - diagnosis_label: Text name of the disease
       - certainty: 'CONFIRMED' or 'PRESUMED'
+      - date_created: Timestamp
       - voided: 0 = active
 
-### BAHMNI LOGIC RULES:
-# 1. Active IPD: Join visit where date_stopped IS NULL.
-# 2. Vitals: Query obs table where concept_id in (vitals_group).
-# 3. Lab: Query obs where concept_id in (lab_set) or check accessions.
+### BAHMNI LOGIC FOR AI:
+# 1. IPD STATUS: A patient is currently admitted if visit.date_stopped IS NULL.
+# 2. VITALS: Join obs -> concept_name. Filter name LIKE '%Weight%', '%Height%', etc.
+# 3. PHARMACY: Join orders -> drug_order -> drug. Use orders.date_activated for date range.
+# 4. RESULTS: Check value_numeric for numbers. For dropdowns, join obs.value_coded to concept_name.concept_id.

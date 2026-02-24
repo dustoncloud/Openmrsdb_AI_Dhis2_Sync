@@ -10,20 +10,37 @@
         }
       ]
     },
-    "PatientGrid": {
+    "Report_101": {
       "mappings": [
         { 
-          "sql_column": "identifier", 
-          "dataElement": "cYeuwXTCPkU",
-          "categoryOptionCombo": "HllvX50cXC0",
-          "comment": "Patient ID"
+          "row": 0,
+          "sql_column": "Patient ID", 
+          "dataElement": "fbfJHSPpUQD", 
+          "categoryOptionCombo": "PT59n8BQbqM",
+          "comment": "Takes 'Patient ID' from SQL Row 1"
         },
         { 
-          "sql_column": "given_name", 
-          "dataElement": "Jtf34kNZhzP",
-          "categoryOptionCombo": "HllvX50cXC0",
-          "comment": "Patient Name"
+          "row": 3,
+          "sql_column": "Total Encounters", 
+          "dataElement": "Jtf34kNZhzP", 
+          "categoryOptionCombo": "PT59n8BQbqM",
+          "comment": "Takes 'First Name' from SQL Row 5"
+        },
+        { 
+          "row": 1,
+          "sql_column": "Patient ID", 
+          "dataElement": "cYeuwXTCPkU", 
+          "categoryOptionCombo": "pq2XI5kz2BY",
+          "comment": "Takes 'Patient ID' from SQL Row 2"
+        },
+        { 
+          "row": 2,
+          "sql_column": "Patient ID", 
+          "dataElement": "cYeuwXTCPkU", 
+          "categoryOptionCombo": "PT59n8BQbqM",
+          "comment": "Takes 'Patient ID' from SQL Row 3"
         }
+
       ]
     }
   }
