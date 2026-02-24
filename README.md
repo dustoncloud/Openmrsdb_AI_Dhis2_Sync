@@ -1,5 +1,7 @@
 # OpenMRS AI & DHIS2 Integration Bridge
-
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/fce0c928-0ec8-4840-b834-43879340a133" />
+</p>
 <p align="center">
   <img src="https://github.com/user-attachments/assets/0c05bd5a-5382-4bc4-bdb5-e8d412da079b" width="900" alt="Dashboard Preview" />
 </p>
@@ -51,4 +53,5 @@ bahmni-ai:
 
 
 By: Deepak Neupane
+
 
