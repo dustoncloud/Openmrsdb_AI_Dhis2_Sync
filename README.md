@@ -1,5 +1,9 @@
 # OpenMRS AI & DHIS2 Integration Bridge
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/0c05bd5a-5382-4bc4-bdb5-e8d412da079b" width="900" alt="Dashboard Preview" />
+</p>
+
 An intelligent, secure, and automated bridge designed to close the gap between clinical data in OpenMRS/Bahmni and public health reporting in DHIS2. This tool leverages Generative AI to transform natural language questions into validated SQL and synchronizes results directly to DHIS2 Data Value Sets.
 
 # Key Features
@@ -42,8 +46,9 @@ bahmni-ai:
       - bahmni
     restart: unless-stopped
 
-3. Browse the URL http://localhost:9000/ and password is insecure Admin123 to login in (the login is Hardcoded Client Side Authentication Bypass from JavaScript)
-<img width="697" height="702" alt="image" src="https://github.com/user-attachments/assets/fbce71fd-ecfe-430f-bbf0-75ed1a55ae51" />
+3. Browse the URL http://localhost:9000/index.html and password is insecure Admin123 to login in (the login is Hardcoded Client Side Authentication Bypass from JavaScript)
+
 
 
 By: Deepak Neupane
+
