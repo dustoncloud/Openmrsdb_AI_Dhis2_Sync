@@ -25,7 +25,7 @@ def get_approved_memory():
             SELECT question, sql 
             FROM feedback_loop 
             WHERE status = 'approved' 
-            ORDER BY id DESC LIMIT 5
+            ORDER BY id DESC LIMIT 50
         """)
         rows = cursor.fetchall()
         conn.close()
@@ -87,4 +87,5 @@ SQL: SELECT COUNT(*) FROM person pe WHERE pe.voided = 0 AND DATE(pe.date_created
 
 ## SQL:
 """
+
     return system_instruction
