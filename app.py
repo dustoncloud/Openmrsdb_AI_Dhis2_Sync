@@ -26,7 +26,7 @@ mapper = DHIS2Mapper()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(BASE_DIR, "sync_logs.json")
-DB_PATH = os.path.join(BASE_DIR, "data","memory_store.db")
+DB_PATH = os.path.join(BASE_DIR, "data", "memory_store.db")
 
 app.mount("/htmls", StaticFiles(directory="htmls"), name="htmls")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -266,3 +266,4 @@ def delete_query(query_id: int):
     except Exception as e:
 
         return {"status": "error", "message": str(e)}
+
