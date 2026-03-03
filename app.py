@@ -26,7 +26,7 @@ mapper = DHIS2Mapper()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(BASE_DIR, "sync_logs.json")
-DB_PATH = os.path.join(BASE_DIR, "memory_store.db")
+DB_PATH = os.path.join(BASE_DIR, "data","memory_store.db")
 
 app.mount("/htmls", StaticFiles(directory="htmls"), name="htmls")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -187,6 +187,8 @@ def sync_to_dhis2(payload: SyncPayload):
 
 @app.on_event("startup")
 def setup_db():
+    if not os.path.exists(os.path.dirname(DB_PATH)):
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
@@ -262,4 +264,5 @@ def delete_query(query_id: int):
         conn.close()
         return {"status": "success", "message": "Query deleted successfully."}
     except Exception as e:
+
         return {"status": "error", "message": str(e)}
